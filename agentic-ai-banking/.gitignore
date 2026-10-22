@@ -1,0 +1,14 @@
+node_modules
+.env
+__pycache__
+.venv
+backend/data/*.db
+backend/data/uploads/*
+dist
+.env.*
+!.env.example
+*.pyc
+.pytest_cache
+.coverage
+coverage.xml
+frontend/.env.local
