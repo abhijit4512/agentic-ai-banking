@@ -2,11 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { Blocks } from "./ui";
 import Icon from "./Icon";
 
-type Msg = { role: "user" | "bot"; text: string; at: Date; blocks?: any[]; sources?: string[]; escalate?: boolean };
+type Msg = { role: "user" | "bot"; text: string; at: Date; blocks?: any[]; sources?: string[]; escalate?: boolean; citations?: any[]; grounded?: boolean };
 const clock = (d: Date) => d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
-export default function ChatBot({ name = "FinPilot Assistant", greeting, hints, ask }: {
-  name?: string; greeting: string; hints: string[]; ask: (m: string) => Promise<any>;
+export default function ChatBot({ name = "FinPilot Assistant", greeting, hints, ask, onCite }: {
+  name?: string; greeting: string; hints: string[]; ask: (m: string) => Promise<any>; onCite?: (c: any) => void;
 }) {
   const welcome = (): Msg => ({ role: "bot", text: greeting, at: new Date() });
   const [msgs, setMsgs] = useState<Msg[]>([welcome()]);
@@ -22,7 +22,7 @@ export default function ChatBot({ name = "FinPilot Assistant", greeting, hints, 
     setText(""); setBusy(true);
     try {
       const r = await ask(q);
-      setMsgs(m => [...m, { role: "bot", text: r.answer, at: new Date(), blocks: r.blocks, sources: r.sources, escalate: r.escalate }]);
+      setMsgs(m => [...m, { role: "bot", text: r.answer, at: new Date(), blocks: r.blocks, sources: r.sources, escalate: r.escalate, citations: r.citations, grounded: r.grounded }]);
     } catch (e: any) {
       setMsgs(m => [...m, { role: "bot", text: "Sorry, something went wrong: " + e.message, at: new Date() }]);
     }
@@ -42,6 +42,8 @@ export default function ChatBot({ name = "FinPilot Assistant", greeting, hints, 
         <div className="bot-col">
           <div className={"bot-bubble " + m.role}>{m.text}<Blocks blocks={m.blocks} /></div>
           {m.role === "bot" && (m.sources || []).length > 0 && <div className="bot-tools">{m.sources!.map(s => <span key={s} className="bot-tool"><Icon name="wrench" size={11} /> {s}</span>)}</div>}
+          {(m.citations || []).length > 0 && <div className="bot-cites">{m.citations!.map((c: any, j: number) => <button key={j} className="bot-cite" onClick={() => onCite?.(c)}>{c.doc} · p.{c.page}</button>)}</div>}
+          {m.grounded === false && <div className="bot-handoff">No supporting evidence found in the document, so I won't guess.</div>}
           {m.escalate && <div className="bot-handoff">This may need a human agent. No live agent is connected in this demo.</div>}
           <small className="bot-time">{clock(m.at)}</small>
         </div>

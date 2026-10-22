@@ -438,6 +438,20 @@ def page_img(did: int, n: int, db=Depends(get_db), u=Depends(user)):
     with fitz.open(d.path) as pdf:
         png = pdf[n - 1].get_pixmap(matrix=fitz.Matrix(1.6, 1.6)).tobytes("png")
     return Response(png, media_type="image/png", headers={"Cache-Control": "private, no-store"})
+@app.get("/api/v1/documents/{did}/pages/{n}/highlights")
+def page_highlights(did: int, n: int, q: str = "", db=Depends(get_db), u=Depends(user)):
+    """Rectangles (as 0-1 fractions of the page) where the cited passage appears, to draw a highlight over the page image."""
+    d = doc_ok(db, u, did)
+    if n < 1 or n > d.pages: raise HTTPException(404, "Page out of range")
+    words, rects = q.split()[:60], []
+    with fitz.open(d.path) as pdf:
+        page = pdf[n - 1]; W, H = page.rect.width, page.rect.height
+        for i in range(0, len(words), 4):
+            phrase = " ".join(words[i:i + 4])
+            if len(phrase) < 6: continue
+            for r in page.search_for(phrase):
+                rects.append({"x": r.x0 / W, "y": r.y0 / H, "w": (r.x1 - r.x0) / W, "h": (r.y1 - r.y0) / H})
+    return {"rects": rects[:80]}
 @app.get("/api/v1/documents/{did}/tables")
 def doc_tables(did: int, db=Depends(get_db), u=Depends(user)):
     doc_ok(db, u, did); return [row(t) for t in db.query(M.Tbl).filter_by(doc_id=did)]

@@ -1,19 +1,70 @@
-import { useState } from "react"; import { api, imgUrl, useApi } from "../api"; import { Badge, ChatPanel, Page } from "../components/ui"; import ChatBot from "../components/ChatBot";
+import { useEffect, useState } from "react"; import { api, imgUrl, useApi } from "../api"; import { Badge, ChatPanel, Page } from "../components/ui"; import ChatBot from "../components/ChatBot";
 export function Documents() {
-  const docs = useApi("/documents"), [sel, setSel] = useState<any>(null), [pg, setPg] = useState(1), [msg, setMsg] = useState(""), [full, setFull] = useState(false);
+  const docs = useApi("/documents");
+  const [sel, setSel] = useState<any>(null), [pg, setPg] = useState(1), [msg, setMsg] = useState(""), [full, setFull] = useState(false);
+  const [hl, setHl] = useState<{ doc_id: number; page: number; snippet: string } | null>(null);
+  const [rects, setRects] = useState<any[]>([]);
   const cur = sel || docs.data?.[0];
-  const up = async (e: any) => { const f = e.target.files[0]; if (!f) return; const fd = new FormData(); fd.append("file", f); setMsg("Uploading and processing…");
-    try { const d = await api("/documents/upload", { body: fd }); setMsg(d.note || "Processed"); docs.reload(); setSel(d); setPg(1); } catch (er: any) { setMsg("Error: " + er.message); } };
-  const cite = (c: any) => { const d = docs.data?.find((x: any) => x.id === c.doc_id); if (d) { setSel(d); setPg(c.page); } };
-  return <Page title="AI Document Assistant" sub="Upload PDFs, then ask. Answers cite document + page and show the real extracted table or original page image.">
-    <div className="split"><div className="card"><div className="toolbar"><label className="btn violet" style={{ cursor: "pointer" }}>⬆ Upload<input type="file" hidden accept="application/pdf" onChange={up} /></label><span className="grow">{msg}</span></div>
-      <div className="toolbar">{(docs.data || []).map((d: any) => <button key={d.id} className={cur?.id === d.id ? "" : "sec"} onClick={() => { setSel(d); setPg(1); }}>{d.name} <Badge v={d.status} /></button>)}</div>
-      {cur?.note && <div className="err">{cur.note}</div>}
-      {cur && cur.pages > 0 && <div className="docview"><div className="row" style={{ justifyContent: "center" }}><button className="sec" disabled={pg <= 1} onClick={() => setPg(pg - 1)}>‹</button> Page {pg} / {cur.pages} <button className="sec" disabled={pg >= cur.pages} onClick={() => setPg(pg + 1)}>›</button><button className="sec" onClick={() => setFull(true)}>Full screen</button></div>
-        <img className="pg" src={imgUrl(`/documents/${cur.id}/pages/${pg}`)} alt="page" /></div>}</div>
-      <div className="card"><div className="toolbar"><b>💬 Ask this document</b></div><ChatPanel onCite={cite} hints={["What is the total amount shown in the statement?", "Show me the table containing loan eligibility criteria", "Show the image on page 3 that explains the transaction process", "What does the chart indicate?"]}
-        ask={(q: string) => api("/rag/query", { body: { question: q, document_ids: cur ? [cur.id] : undefined } })} /></div></div>
-    {full && cur && <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.85)", overflow: "auto", padding: 20, zIndex: 9 }} onClick={() => setFull(false)}><img className="pg" style={{ maxWidth: "min(1000px,100%)", display: "block", margin: "0 auto" }} src={imgUrl(`/documents/${cur.id}/pages/${pg}`)} /></div>}</Page>;
+
+  useEffect(() => {
+    setRects([]);
+    if (!cur || !hl || hl.doc_id !== cur.id || hl.page !== pg || !hl.snippet) return;
+    api(`/documents/${cur.id}/pages/${pg}/highlights?q=${encodeURIComponent(hl.snippet)}`).then(r => setRects(r.rects || [])).catch(() => setRects([]));
+  }, [cur?.id, pg, hl]);
+
+  const up = async (e: any) => {
+    const f = e.target.files[0]; if (!f) return;
+    const fd = new FormData(); fd.append("file", f); setMsg("Uploading and processing…");
+    try { const d = await api("/documents/upload", { body: fd }); setMsg(d.note || "Processed"); docs.reload(); setSel(d); setPg(1); setHl(null); }
+    catch (er: any) { setMsg("Error: " + er.message); }
+  };
+  const cite = (c: any) => {
+    const d = docs.data?.find((x: any) => x.id === c.doc_id);
+    if (d) { setSel(d); setPg(c.page); setHl({ doc_id: c.doc_id, page: c.page, snippet: c.snippet || "" }); }
+  };
+  const ask = async (q: string) => {
+    const r = await api("/rag/query", { body: { question: q, document_ids: cur ? [cur.id] : undefined } });
+    if (r.citations?.length) cite(r.citations[0]);   // jump to the best source page and highlight it
+    return r;
+  };
+  const marks = rects.map((r, i) => <span key={i} className="da-hl" style={{ left: r.x * 100 + "%", top: r.y * 100 + "%", width: r.w * 100 + "%", height: r.h * 100 + "%" }} />);
+
+  return <Page title="AI Document Assistant" sub="Upload a PDF and ask questions. Answers cite the page, highlight the source text, and show the real tables and page images.">
+    <div className="da">
+      <section className="card da-view">
+        <div className="da-bar">
+          <label className="btn violet" style={{ cursor: "pointer" }}>Upload PDF<input type="file" hidden accept="application/pdf" onChange={up} /></label>
+          <select aria-label="Document" value={cur?.id ?? ""} onChange={e => { setSel(docs.data.find((d: any) => d.id === +e.target.value)); setPg(1); setHl(null); }}>
+            {(docs.data || []).map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
+          </select>
+          {cur && <Badge v={cur.status} />}
+          <span className="grow">{msg}</span>
+        </div>
+        {cur?.note && <div className="err">{cur.note}</div>}
+        {!cur && <div className="empty">Upload a PDF to get started.</div>}
+        {cur && cur.pages > 0 && <>
+          <div className="da-nav">
+            <button className="sec" disabled={pg <= 1} onClick={() => setPg(pg - 1)}>‹ Prev</button>
+            <span>Page {pg} / {cur.pages}</span>
+            <button className="sec" disabled={pg >= cur.pages} onClick={() => setPg(pg + 1)}>Next ›</button>
+            <button className="sec" onClick={() => setFull(true)}>Full screen</button>
+          </div>
+          <div className="da-stage"><div className="da-page">
+            <img src={imgUrl(`/documents/${cur.id}/pages/${pg}`)} alt={`${cur.name} page ${pg}`} />
+            {marks}
+          </div></div>
+          {hl && hl.page === pg && hl.doc_id === cur.id && <div className="da-note">{rects.length ? "Highlighted: the passage used for the answer" : "Source page shown (no exact text to highlight, e.g. a scanned page)"}</div>}
+        </>}
+      </section>
+      <section className="card da-chat">
+        <ChatBot name="Document Assistant" onCite={cite} ask={ask}
+          greeting="Upload a PDF, then ask me about it. I'll answer from the document, show tables and page images, and point to the page."
+          hints={["What is the total amount shown in the statement?", "Show me the table containing loan eligibility criteria", "Show the image on page 3 that explains the transaction process", "What does the chart indicate?"]} />
+      </section>
+    </div>
+    {full && cur && <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.85)", overflow: "auto", padding: 20, zIndex: 9 }} onClick={() => setFull(false)}>
+      <div className="da-page" style={{ maxWidth: "min(1000px,100%)", margin: "0 auto" }}><img src={imgUrl(`/documents/${cur.id}/pages/${pg}`)} alt="page" />{marks}</div></div>}
+  </Page>;
 }
 export function Support({ me }: any) {
   const [last, setLast] = useState<any>(null), [cid, setCid] = useState(1);

@@ -91,7 +91,7 @@ def llm(q, ctx):
 def query(db, q, ids):
     docs = {d.id: d for d in db.query(Document).filter(Document.id.in_(ids))}
     ql, blocks, cites = q.lower(), [], []
-    def cite(doc_id, page): cites.append({"doc_id": doc_id, "doc": docs[doc_id].name, "page": page})
+    def cite(doc_id, page, snippet=""): cites.append({"doc_id": doc_id, "doc": docs[doc_id].name, "page": page, "snippet": snippet})
     def tblock(t):
         cite(t.doc_id, t.page)
         return {"type": "table", "doc_id": t.doc_id, "doc": docs[t.doc_id].name, "page": t.page, "rows": t.rows,
@@ -118,7 +118,7 @@ def query(db, q, ids):
         if ts: return {"answer": "Here is the extracted table exactly as parsed (empty/uncertain cells are highlighted, never filled in).", "blocks": [tblock(ts[0])], "citations": cites, "grounded": True}
     hits = search(db, q, list(docs))
     if not hits: return {"answer": "I could not find supporting evidence in the selected documents, so I won't guess. Try rephrasing, or check whether the document needs OCR.", "blocks": [], "citations": [], "grounded": False}
-    for c in hits: cite(c.doc_id, c.page)
+    for c in hits: cite(c.doc_id, c.page, c.text[:200])
     if re.search(r"chart|graph|diagram|figure", ql): blocks.append(iblock(hits[0].doc_id, hits[0].page))
     ctx = "\n\n".join(f"[{docs[c.doc_id].name} p.{c.page}] {c.text}" for c in hits)
     ans = llm(q, ctx) or "Most relevant passages found:\n" + "\n".join(f"- [{docs[c.doc_id].name} p.{c.page}] {c.text[:280].strip()}..." for c in hits[:3])

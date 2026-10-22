@@ -127,7 +127,7 @@ def validate_upload(filename, data):
 
 def _ocr_image(image_bytes):
     if not core.KYC_OCR_ENABLED:
-        raise KycError("/p OCR is disabled. An authorized reviewer can inspect the document manually./p", 503)
+        raise KycError("OCR is disabled. An authorized reviewer can inspect the document manually.", 503)
     if not core.HF_TOKEN or not core.HF_OCR_MODEL:
         raise KycError("OCR is enabled but HF_TOKEN or HF_OCR_MODEL is not configured.", 503)
     url = "https://router.huggingface.co/hf-inference/models/" + core.HF_OCR_MODEL

@@ -190,3 +190,24 @@ img.pg{max-width:100%;border:1px solid var(--line);border-radius:10px;background
 .kq-decision{display:grid;gap:10px;position:sticky;top:80px}
 .kq-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 @media(max-width:1000px){.kq{grid-template-columns:1fr}.kq-list{position:static}.kq-cols{grid-template-columns:1fr}.kq-decision{position:static}.kq-stats{grid-template-columns:repeat(2,1fr)}}
+
+/* ---------- AI Document Assistant ---------- */
+.da{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(360px,1fr);gap:18px;align-items:start}
+.da-view{display:grid;gap:12px;padding:16px;height:calc(100vh - 190px);min-height:540px;grid-template-rows:auto auto auto 1fr auto;overflow:hidden;border-radius:18px}
+.da-bar,.da-nav{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.da-nav{justify-content:center;background:#f7f9fd;border:1px solid var(--line);border-radius:12px;padding:6px}
+.da-nav span{font-weight:600;min-width:110px;text-align:center}
+.da-bar select{max-width:260px;flex:1}
+.da-stage{overflow:auto;background:linear-gradient(180deg,#e9eef8,#f2f5fb);border-radius:14px;padding:16px;min-height:0}
+.da-page{position:relative;display:block;width:100%;line-height:0}
+.da-page img{width:100%;height:auto;border-radius:6px;box-shadow:0 8px 28px rgba(15,27,51,.18);background:#fff}
+.da-hl{position:absolute;background:rgba(255,205,0,.5);mix-blend-mode:multiply;border-radius:3px;pointer-events:none;box-shadow:0 0 0 1px rgba(217,119,6,.55);animation:dahl .6s ease-out}
+@keyframes dahl{from{background:rgba(255,205,0,.95)}to{background:rgba(255,205,0,.5)}}
+.da-note{font-size:12px;color:var(--mut);text-align:center;background:#fff8e1;border:1px solid #fde9a8;border-radius:99px;padding:3px 12px;justify-self:center}
+.da-chat{padding:0;overflow:hidden;border-radius:18px}.da-chat .bot{height:calc(100vh - 190px);min-height:540px}
+.bot-cites{display:flex;gap:6px;flex-wrap:wrap}
+.bot-cite{background:var(--blue2);color:var(--blue);border:1px solid #cfe0ff;box-shadow:none;border-radius:99px;padding:2px 10px;font-size:11.5px}
+.bot-cite:hover{background:#dbe6ff}
+.bot-bubble table{font-size:12px;margin-top:8px;white-space:normal;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.bot-bubble th,.bot-bubble td{padding:6px 8px;white-space:normal}.bot-bubble th{background:#f1f5fd;cursor:default}
+.bot-bubble img.pg{margin-top:8px;max-width:100%}
+@media(max-width:1000px){.da{grid-template-columns:1fr}.da-view{height:auto;min-height:420px}.da-chat .bot{height:560px}}
